@@ -6,6 +6,8 @@ function render(el, container) {
         }
     }
 
+    console.log(initialWork)
+
     root = initialWork
 }
 
@@ -74,6 +76,9 @@ function createDom(type) {
 }
 
 function addProps(dom, props) {
+    if (!props) {
+        return
+    }
     Object.keys(props).forEach(key => {
         if (key !== 'children') {
             dom[key] = props[key]
@@ -82,16 +87,16 @@ function addProps(dom, props) {
 }
 
 function initChildren(work) {
-    const children = work.props.children || [];
+    const children = work.props?.children || [];
     let preWork = null
     children.forEach((child, index) => {
         const newWork = {
             dom: null,
-            props: child.props,
+            props: child.type ? child.props : { nodeValue: child },
             child: null,
             sibling: null,
             parent: work,
-            type: child.type
+            type: child.type ? child.type : 'TEXT_ELEMENT'
         }
         if (index === 0) {
             work.child = newWork
@@ -108,10 +113,12 @@ function performUnitOfWork(work) {
     if (!work.dom) {
         work.dom = createDom(work.type);
         addProps(work.dom, work.props)
-
+        work.parent.dom.appendChild(work.dom)
     }
 
     initChildren(work)
+
+    console.log(work)
 
     if (work.child) {
         return work.child
@@ -122,8 +129,6 @@ function performUnitOfWork(work) {
     }
 
     return work.parent?.sibling
-
-
 }
 
 const React = {
