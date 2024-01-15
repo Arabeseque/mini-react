@@ -1,12 +1,11 @@
 function render(el, container) {
+    console.log('el', el)
     initialWork = {
         dom: container,
         props: {
-            children: [el]
+            children: [el.type]
         }
     }
-
-    console.log(initialWork)
 
     root = initialWork
 }
@@ -26,7 +25,7 @@ function createElement(type, props, ...children) {
         type,
         props: {
             ...props,
-            children
+            children: children.map(child => typeof child === 'object' ? child : createTextNode(child))
         }
     }
 }
@@ -59,18 +58,23 @@ function commitWork(work) {
         return
     }
 
-    let parentDom = work.parent.dom
-    while (!parentDom) {
-        parentDom = work.parent.dom
+    let parentWork = work.parent
+    while (!parentWork.dom) {
+        parentWork = parentWork.parent
     }
 
-    parentDom.appendChild(work.dom)
+    if (work.dom) {
+        parentWork.dom.appendChild(work.dom)
+    }
 
     commitWork(work.child)
     commitWork(work.sibling)
 }
 
 function createDom(type) {
+    // 虚拟dom
+
+
     const dom = type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(type);
     return dom
 }
@@ -86,13 +90,15 @@ function addProps(dom, props) {
     })
 }
 
-function initChildren(work) {
-    const children = work.props?.children || [];
+function initChildren(work, children) {
+    if (!children) {
+        return
+    }
     let preWork = null
     children.forEach((child, index) => {
         const newWork = {
             dom: null,
-            props: child.type ? child.props : { nodeValue: child },
+            props: child.props,
             child: null,
             sibling: null,
             parent: work,
@@ -101,7 +107,7 @@ function initChildren(work) {
         if (index === 0) {
             work.child = newWork
         } else {
-            preWork.sibling = child
+            preWork.sibling = newWork
         }
         preWork = newWork
     })
@@ -109,16 +115,21 @@ function initChildren(work) {
 
 }
 
+
+
 function performUnitOfWork(work) {
-    if (!work.dom) {
-        work.dom = createDom(work.type);
-        addProps(work.dom, work.props)
-        work.parent.dom.appendChild(work.dom)
+    const isFunctionComponent = work.type instanceof Function
+
+    if (!isFunctionComponent) {
+        if (!work.dom) {
+            work.dom = createDom(work.type);
+            addProps(work.dom, work.props)
+        }
     }
 
-    initChildren(work)
+    const children = isFunctionComponent ? [work.type(work.props)] : work.props.children
 
-    console.log(work)
+    initChildren(work, children)
 
     if (work.child) {
         return work.child
@@ -128,7 +139,12 @@ function performUnitOfWork(work) {
         return work.sibling
     }
 
-    return work.parent?.sibling
+    while (work.parent) {
+        if (work.parent.sibling) {
+            return work.parent.sibling
+        }
+        work = work.parent
+    }
 }
 
 const React = {
