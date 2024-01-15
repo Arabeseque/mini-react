@@ -5,6 +5,8 @@ function render(el, container) {
             children: [el]
         }
     }
+
+    root = initialWork
 }
 
 function createTextNode(text) {
@@ -27,6 +29,7 @@ function createElement(type, props, ...children) {
     }
 }
 
+let root = null
 let initialWork = null
 function workLoop(deadline) {
     let shouldYield = false
@@ -35,10 +38,35 @@ function workLoop(deadline) {
         initialWork = performUnitOfWork(initialWork)
     }
 
+    if (root) {
+        commitRoot()
+    }
+
     requestIdleCallback(workLoop)
 }
 
 requestIdleCallback(workLoop)
+
+function commitRoot() {
+    commitWork(root.child)
+    root = null
+}
+
+function commitWork(work) {
+    if (!work) {
+        return
+    }
+
+    let parentDom = work.parent.dom
+    while (!parentDom) {
+        parentDom = work.parent.dom
+    }
+
+    parentDom.appendChild(work.dom)
+
+    commitWork(work.child)
+    commitWork(work.sibling)
+}
 
 function createDom(type) {
     const dom = type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(type);
@@ -78,17 +106,12 @@ function initChildren(work) {
 
 function performUnitOfWork(work) {
     if (!work.dom) {
-        const dom = work.dom = createDom(work.type);
-        work.parent.dom.append(dom);
-    }
-
-    if (work.props) {
+        work.dom = createDom(work.type);
         addProps(work.dom, work.props)
+
     }
 
-    if (work.props.children) {
-        initChildren(work)
-    }
+    initChildren(work)
 
     if (work.child) {
         return work.child
