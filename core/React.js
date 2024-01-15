@@ -40,23 +40,20 @@ function workLoop(deadline) {
 
 requestIdleCallback(workLoop)
 
-function performUnitOfWork(work) {
-    // 1.创建DOM
-    if (!work.dom) {
-        const dom = work.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(work.type);
-        work.dom = dom;
-        work.parent.dom.append(dom);
+function createDom(type) {
+    const dom = type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(type);
+    return dom
+}
 
-    }
-
-    // 2.给DOM添加属性
-    Object.keys(work.props).forEach(key => {
+function addProps(dom, props) {
+    Object.keys(props).forEach(key => {
         if (key !== 'children') {
-            work.dom[key] = work.props[key];
+            dom[key] = props[key]
         }
     })
+}
 
-    // 3.转换链表
+function initChildren(work) {
     const children = work.props.children || [];
     let preWork = null
     children.forEach((child, index) => {
@@ -75,6 +72,23 @@ function performUnitOfWork(work) {
         }
         preWork = newWork
     })
+
+
+}
+
+function performUnitOfWork(work) {
+    if (!work.dom) {
+        const dom = work.dom = createDom(work.type);
+        work.parent.dom.append(dom);
+    }
+
+    if (work.props) {
+        addProps(work.dom, work.props)
+    }
+
+    if (work.props.children) {
+        initChildren(work)
+    }
 
     if (work.child) {
         return work.child
